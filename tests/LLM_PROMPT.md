@@ -45,3 +45,13 @@ Tools to call:
 - get_labels
 
 At the end, print a summary: X/Y passed, and list any failures.
+
+---
+
+## ChatGPT note
+
+ChatGPT's safety filter may block `get_tag`, `get_tag_by_slug`, or `get_shopping_lists` with the message
+"This tool call was blocked by OpenAI's safety checks." This is a false positive — the tools are read-only
+and the requests never reach the server. These tools are listed first in the prompt to minimize the chance
+of a block (the filter is more likely to trigger after a large amount of conversation context has accumulated).
+If a block occurs, note it as a platform issue, not a server error.
