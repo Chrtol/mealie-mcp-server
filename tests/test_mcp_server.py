@@ -103,6 +103,8 @@ EXPECTED_TOOLS = {
 
 
 async def run(session: ClientSession) -> None:
+    import json as _json
+    import re as _re
     state: dict = {}
 
     # -----------------------------------------------------------------------
@@ -154,7 +156,6 @@ async def run(session: ClientSession) -> None:
     # -----------------------------------------------------------------------
     section("Pre-flight — fetch organizer slugs for recipe creation test")
     # -----------------------------------------------------------------------
-    import re as _re
     for _fetch_tool, _key, _args in [
         ("get_categories",    "pre_category_slug", {"per_page": 5}),
         ("get_tags",          "pre_tag_slug",       {"per_page": 5}),
@@ -344,7 +345,6 @@ async def run(session: ClientSession) -> None:
 
     if state.get("category_id"):
         try:
-            import json as _json
             r = await session.call_tool("get_category", {"category_id": state["category_id"]})
             check("get_category", r.content is not None)
             _data = _json.loads(r.content[0].text) if r.content else {}
