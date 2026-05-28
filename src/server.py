@@ -68,7 +68,9 @@ def _internal_discovery_url() -> tuple[str, dict]:
             path = path[: -len("/jwks")]
         discovery_path = path.rstrip("/") + "/.well-known/openid-configuration"
         url = urllib.parse.urlunparse(parsed._replace(path=discovery_path))
-        headers = {"Host": _authentik_host} if _authentik_host else {}
+        headers = {"X-Forwarded-Proto": "https"}
+        if _authentik_host:
+            headers["Host"] = _authentik_host
         return url, headers
     issuer = (_authentik_issuer or "").rstrip("/")
     return f"{issuer}/.well-known/openid-configuration", {}

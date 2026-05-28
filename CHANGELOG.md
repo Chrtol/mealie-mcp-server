@@ -4,6 +4,14 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [1.0.17] — 2026-05-28
+
+### Fixed
+
+- `src/server.py` — `_internal_discovery_url()` now sends `X-Forwarded-Proto: https` when fetching the OIDC discovery document from the internal Docker URL. Without this header, Authentik generated all URLs in the discovery document with `http://` scheme (matching the internal HTTP fetch), causing ChatGPT to receive `http://` authorization and token endpoint URLs that would fail or mismatch the `https://` issuer claim in issued tokens.
+
+---
+
 ## [1.0.16] — 2026-05-28
 
 ### Fixed
