@@ -50,8 +50,8 @@ At the end, print a summary: X/Y passed, and list any failures.
 
 ## ChatGPT note
 
-ChatGPT's safety filter may block `get_tag`, `get_tag_by_slug`, or `get_shopping_lists` with the message
-"This tool call was blocked by OpenAI's safety checks." This is a false positive — the tools are read-only
-and the requests never reach the server. These tools are listed first in the prompt to minimize the chance
-of a block (the filter is more likely to trigger after a large amount of conversation context has accumulated).
-If a block occurs, note it as a platform issue, not a server error.
+ChatGPT's safety filter may block certain tool calls with "This tool call was blocked by OpenAI's safety checks."
+This is a false positive — the tools are read-only and the requests never reach the server. Known false-positive
+tools: `get_tag`, `get_tag_by_slug`, `get_shopping_lists`, `get_recipe_comments`, `get_category`, `get_food`,
+`get_shopping_list_item`, `get_cookbooks`. The filter is more likely to trigger after a large amount of
+conversation context has accumulated. If a block occurs, note it as a platform issue, not a server error.

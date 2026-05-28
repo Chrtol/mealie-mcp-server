@@ -4,7 +4,7 @@ import traceback
 from typing import Any, Dict
 
 import httpx
-from httpx import ConnectError, HTTPStatusError, ReadTimeout
+from httpx import ConnectError, HTTPStatusError, ReadTimeout, RemoteProtocolError
 
 logger = logging.getLogger("mealie-mcp")
 
@@ -66,6 +66,7 @@ class MealieClient:
         - Multipart uploads via files= parameter
         - Form data via data= parameter
         """
+        _retry = kwargs.pop("_retry", True)
         try:
             logger.debug(
                 {
@@ -174,6 +175,15 @@ class MealieClient:
             logger.debug(
                 {"message": "Error traceback", "traceback": traceback.format_exc()}
             )
+            raise ConnectionError(error_msg) from e
+
+        except RemoteProtocolError as e:
+            # Stale pooled connection was closed by the server; retry once with a fresh connection.
+            if _retry:
+                logger.warning({"message": f"Stale connection on {method} {url}, retrying", "error": str(e)})
+                return self._handle_request(method, url, _retry=False, **kwargs)
+            error_msg = f"Protocol error for {method} {url}: {str(e)}"
+            logger.error({"message": error_msg, "method": method, "url": url, "error": str(e)})
             raise ConnectionError(error_msg) from e
 
         except Exception as e:

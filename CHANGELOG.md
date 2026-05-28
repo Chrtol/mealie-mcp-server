@@ -4,6 +4,14 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [1.0.18] — 2026-05-28
+
+### Fixed
+
+- `src/mealie/client.py` — `_handle_request` now catches `httpx.RemoteProtocolError` and retries the request once with a fresh connection. When the MCP server sits idle during a long OAuth setup flow, the persistent `httpx.Client` connection pool holds a TCP connection that Mealie (or the network) has already closed. The first tool call after the idle period would hit that stale connection, get a connection-reset error, and surface as a generic MCP error with no detail. The retry opens a fresh connection and succeeds. Without this fix, the very first tool call of a new session would fail roughly every time there was a delay between server startup and the first use.
+
+---
+
 ## [1.0.17] — 2026-05-28
 
 ### Fixed
