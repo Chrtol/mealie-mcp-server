@@ -333,7 +333,6 @@ async def run(session: ClientSession) -> None:
         r = await session.call_tool("get_categories", {"per_page": 5})
         text = r.content[0].text if r.content else ""
         if '"id"' in text:
-            import json, re
             ids = _re.findall(r'"id":\s*"([^"]+)"', text)
             slugs = _re.findall(r'"slug":\s*"([^"]+)"', text)
             if ids:
@@ -387,7 +386,6 @@ async def run(session: ClientSession) -> None:
     try:
         r = await session.call_tool("get_tags", {"per_page": 5})
         text = r.content[0].text if r.content else ""
-        import re
         ids = _re.findall(r'"id":\s*"([^"]+)"', text)
         slugs = _re.findall(r'"slug":\s*"([^"]+)"', text)
         if ids:
@@ -437,7 +435,6 @@ async def run(session: ClientSession) -> None:
         r = await session.call_tool("create_food", {"name": "__test_food_a__"})
         text = r.content[0].text if r.content else ""
         check("create_food (__test_food_a__)", "__test_food_a__" in text or "id" in text)
-        import re
         ids = _re.findall(r'"id":\s*"([^"]+)"', text)
         if ids:
             state["food_a_id"] = ids[0]
@@ -448,7 +445,6 @@ async def run(session: ClientSession) -> None:
         r = await session.call_tool("create_food", {"name": "__test_food_b__"})
         text = r.content[0].text if r.content else ""
         check("create_food (__test_food_b__)", "__test_food_b__" in text or "id" in text)
-        import re
         ids = _re.findall(r'"id":\s*"([^"]+)"', text)
         if ids:
             state["food_b_id"] = ids[0]
@@ -505,7 +501,6 @@ async def run(session: ClientSession) -> None:
         r = await session.call_tool("create_shopping_list", {"name": "__test_shopping_list__"})
         text = r.content[0].text if r.content else ""
         check("create_shopping_list", "id" in text)
-        import re
         ids = _re.findall(r'"id":\s*"([^"]+)"', text)
         if ids:
             state["shopping_list_id"] = ids[0]
@@ -533,7 +528,6 @@ async def run(session: ClientSession) -> None:
             })
             text = r.content[0].text if r.content else ""
             check("create_shopping_list_item", "id" in text)
-            import re
             ids = _re.findall(r'"id":\s*"([^"]+)"', text)
             if ids:
                 state["shopping_item_id"] = ids[0]
@@ -564,7 +558,6 @@ async def run(session: ClientSession) -> None:
         try:
             r = await session.call_tool("get_recipe_detailed", {"slug": slug})
             text = r.content[0].text if r.content else ""
-            import re
             ids = _re.findall(r'"id":\s*"([^"]+)"', text)
             if ids:
                 state["recipe_id"] = ids[0]
@@ -630,7 +623,6 @@ async def run(session: ClientSession) -> None:
         })
         text = r.content[0].text if r.content else ""
         check("create_mealplan", "id" in text)
-        import re
         ids = _re.findall(r'"id":\s*(\d+)', text)
         if ids:
             state["mealplan_id"] = ids[0]

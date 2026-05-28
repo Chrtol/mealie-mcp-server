@@ -50,7 +50,7 @@ def register_tags_tools(mcp: FastMCP, mealie: MealieFetcher) -> None:
         try:
             logger.info({"message": "Fetching tag", "tag_id": tag_id})
             result = mealie.get_tag(tag_id)
-            if "recipes" in result:
+            if result.get("recipes"):
                 result["recipes"] = [r["slug"] for r in result["recipes"] if r.get("slug")]
             return result
         except Exception as e:
@@ -73,7 +73,7 @@ def register_tags_tools(mcp: FastMCP, mealie: MealieFetcher) -> None:
         try:
             logger.info({"message": "Fetching tag by slug", "tag_slug": tag_slug})
             result = mealie.get_tag_by_slug(tag_slug)
-            if "recipes" in result:
+            if result.get("recipes"):
                 result["recipes"] = [r["slug"] for r in result["recipes"] if r.get("slug")]
             return result
         except Exception as e:

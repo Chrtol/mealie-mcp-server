@@ -4,6 +4,18 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [1.0.15] — 2026-05-28
+
+### Fixed
+
+- `src/tools/tags_tools.py` and `src/tools/categories_tools.py` — recipe trimming guard changed from `if "recipes" in result:` to `if result.get("recipes"):`. Mealie returns `"recipes": null` for tags/categories with no assigned recipes; the old guard let `None` through, causing `TypeError: 'NoneType' is not iterable` on the list comprehension.
+
+### Cleanup
+
+- `tests/test_mcp_server.py` — removed all remaining orphaned `import re` and `import json, re` inline statements; `_re` and `_json` are now the sole imports used throughout `run()`.
+
+---
+
 ## [1.0.14] — 2026-05-28
 
 ### Changed
