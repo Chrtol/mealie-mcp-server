@@ -4,6 +4,14 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [1.0.13] — 2026-05-28
+
+### Tests
+
+- `tests/test_mcp_server.py` — `_json` and `_re` hoisted to top of `run()`. Previously `_json` was imported inside the `if state.get("category_id"):` guard, making it undefined for the category_slug, tag_id, and tag_slug blocks if no category ID was found in the instance.
+
+---
+
 ## [1.0.12] — 2026-05-28
 
 ### Changed
