@@ -1,6 +1,7 @@
 import logging
 import os
 import traceback
+import urllib.parse
 
 import httpx
 from dotenv import load_dotenv
@@ -30,6 +31,8 @@ logging.basicConfig(
 logger = logging.getLogger("mealie-mcp")
 
 _authentik_issuer = os.getenv("AUTHENTIK_ISSUER")
+_authentik_jwks_uri = os.getenv("AUTHENTIK_JWKS_URI")
+_authentik_host = os.getenv("AUTHENTIK_HOST")
 _auth_settings = None
 _token_verifier = None
 if _authentik_issuer:
@@ -50,15 +53,35 @@ mcp = FastMCP(
 _oidc_metadata_cache: dict | None = None
 
 
+def _internal_discovery_url() -> tuple[str, dict]:
+    """Return (discovery_url, headers) using internal Docker URL when possible.
+
+    When AUTHENTIK_JWKS_URI is set (e.g. http://authentik-internal:9000/.../jwks/),
+    derive the discovery URL by replacing /jwks/ with /.well-known/openid-configuration
+    and add a Host header so Authentik identifies the request correctly.
+    Falls back to the external AUTHENTIK_ISSUER URL when no internal URI is configured.
+    """
+    if _authentik_jwks_uri:
+        parsed = urllib.parse.urlparse(_authentik_jwks_uri)
+        path = parsed.path.rstrip("/")
+        if path.endswith("/jwks"):
+            path = path[: -len("/jwks")]
+        discovery_path = path.rstrip("/") + "/.well-known/openid-configuration"
+        url = urllib.parse.urlunparse(parsed._replace(path=discovery_path))
+        headers = {"Host": _authentik_host} if _authentik_host else {}
+        return url, headers
+    issuer = (_authentik_issuer or "").rstrip("/")
+    return f"{issuer}/.well-known/openid-configuration", {}
+
+
 @mcp.custom_route("/.well-known/oauth-authorization-server", methods=["GET"])
 async def oauth_authorization_server_metadata(request: Request) -> Response:
     """Proxy Authentik's OIDC discovery so clients that skip oauth-protected-resource still find the token endpoint."""
     global _oidc_metadata_cache
     if _oidc_metadata_cache is None:
-        issuer = (_authentik_issuer or "").rstrip("/")
-        discovery_url = f"{issuer}/.well-known/openid-configuration"
+        discovery_url, headers = _internal_discovery_url()
         async with httpx.AsyncClient() as client:
-            resp = await client.get(discovery_url, timeout=10)
+            resp = await client.get(discovery_url, timeout=10, headers=headers)
             resp.raise_for_status()
             _oidc_metadata_cache = resp.json()
         logger.info("Cached OAuth authorization server metadata from %s", discovery_url)

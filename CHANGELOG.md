@@ -4,6 +4,14 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [1.0.16] — 2026-05-28
+
+### Fixed
+
+- `src/server.py` — `/.well-known/oauth-authorization-server` and `/.well-known/openid-configuration` now fetch the OIDC discovery document via the internal Docker URL when `AUTHENTIK_JWKS_URI` is set, instead of going through the external Cloudflare-proxied hostname. Cloudflare was returning 403 on container-to-container requests after a restart cleared the in-memory cache, causing a 500 on every reconnect attempt. The discovery URL is derived from `AUTHENTIK_JWKS_URI` by replacing `/jwks/` with `/.well-known/openid-configuration`; the `Host` header is set from `AUTHENTIK_HOST` so Authentik identifies the request correctly. The cached response still contains external URLs (token endpoint, authorization endpoint) so MCP clients can reach them.
+
+---
+
 ## [1.0.15] — 2026-05-28
 
 ### Fixed
