@@ -4,6 +4,18 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [1.0.14] — 2026-05-28
+
+### Changed
+
+- `tests/LLM_PROMPT.md` — added note explaining that ChatGPT may block `get_tag`, `get_tag_by_slug`, and `get_shopping_lists` via its safety filter and that this is a platform false positive, not a server error.
+
+### Cleanup
+
+- `tests/test_mcp_server.py` — removed all redundant inline `import re` and `import json` statements; updated all `re.findall` calls to `_re.findall` to use the aliases hoisted at the top of `run()` in v1.0.13.
+
+---
+
 ## [1.0.13] — 2026-05-28
 
 ### Tests
