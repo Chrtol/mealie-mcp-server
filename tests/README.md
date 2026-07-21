@@ -1,6 +1,7 @@
 # Tests
 
-Two test scripts covering all 51 MCP tools at two layers.
+Three test scripts: two integration scripts covering all 51 MCP tools at two
+layers, plus a standalone unit test for the auth token verifier.
 
 ## Setup
 
@@ -47,6 +48,28 @@ python tests/test_mcp_server.py
 - MCP server running in Docker (`docker compose -f tests/docker-compose.yml up -d --build`)
 - `MCP_SERVER_URL` set in `tests/.env.testing` (default: `http://localhost:8000/mcp`)
 - Server's own `.env` must have valid `MEALIE_BASE_URL` and `MEALIE_API_KEY`
+
+## Script 3 — Auth token verifier (`test_auth.py`)
+
+Unit-tests `src/auth.py` (Authentik JWT verification). Needs **no live
+infrastructure** — no Mealie, no Authentik, no running server, no
+`.env.testing`. It mints its own RS256 keys with `joserfc` and stubs the JWKS
+cache.
+
+```bash
+python tests/test_auth.py
+```
+
+**What it tests:**
+- Audience enforcement — accepts a matching `aud`, rejects a wrong or missing one
+- RS256 algorithm pinning — rejects an `HS256`-forged token (alg-confusion)
+- Signing-key rotation — an unknown `kid` forces exactly one JWKS refetch
+- Forced-refetch rate limiting (`_JWKS_MIN_REFETCH`)
+- Claim validation — `exp`, `nbf`, and `iss` (incl. trailing-slash normalization)
+- `build_token_verifier()` fails closed when `AUTHENTIK_AUDIENCE` is unset
+
+**Requirements:**
+- None beyond the project's own dependencies (`joserfc`, already required)
 
 ## Test naming convention
 
