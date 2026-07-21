@@ -4,6 +4,25 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [1.0.19] — 2026-07-21
+
+### Security
+
+- `src/auth.py` — hardened Authentik JWT verification (backported from the memory-vault project):
+  - **Algorithm pinning.** `jwt.decode()` is now called with an explicit `algorithms=["RS256"]` allowlist. Previously joserfc validated against its default registry, leaving the door open to an algorithm-confusion attack (a token forged with `alg:HS256` using the RSA public-key bytes as the HMAC secret). Authentik signs OIDC tokens with RS256 when a Signing Key is configured (its default), so RS256 is pinned. If Authentik is switched to an EC signing certificate this allowlist must be updated to match.
+  - **Signing-key rotation.** When a token's `kid` is absent from the cached JWKS, Authentik has likely rotated its signing key. The verifier now forces one immediate JWKS refetch instead of waiting out the hour-long cache TTL (which would otherwise fail every token for up to an hour after a rotation). The forced refetch is rate-limited to at most once per 60 seconds so a flood of bogus-`kid` tokens can't stampede Authentik.
+  - **Single-flight fetches.** Discovery and JWKS fetches are guarded by `asyncio.Lock`, so a burst of concurrent token verifications on a cold cache no longer fires N simultaneous requests at Authentik. Warm-cache reads return before taking the lock, keeping the hot path contention-free.
+
+### Changed (BREAKING)
+
+- `src/auth.py` — `AUTHENTIK_AUDIENCE` is now **required** whenever authentication is enabled (whenever `AUTHENTIK_ISSUER` is set). The server fails closed at startup with a clear error if it is missing. Without an audience check the `aud` claim is not validated and *any* valid token from the issuer is accepted — including one minted for a different application that shares the same Authentik (a confused-deputy vulnerability). **Action required:** set `AUTHENTIK_AUDIENCE` to your provider's Client ID before upgrading any deployment that has auth enabled, or the server will not start. Deployments with auth disabled (`AUTHENTIK_ISSUER` unset) are unaffected.
+
+### Added
+
+- `tests/test_auth.py` — unit tests for the token verifier (audience accept/reject, RS256 algorithm pinning, `kid` rotation refetch + rate-limit, and `exp`/`nbf`/`iss` claim validation). Uses locally-minted RS256 keys and a stubbed JWKS — no live Authentik required.
+
+---
+
 ## [1.0.18] — 2026-05-28
 
 ### Fixed

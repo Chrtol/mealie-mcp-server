@@ -5,7 +5,8 @@ A [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server for [Me
 ## ✨ Features
 
 ### 🔐 Single-User OAuth 2.0 Authentication (optional)
-- **Authentik integration**: Validates bearer tokens via OIDC discovery + JWKS
+- **Authentik integration**: Validates bearer tokens via OIDC discovery + JWKS, with RS256 signature pinning and automatic signing-key rotation
+- **Audience-scoped**: rejects tokens minted for other apps that share your Authentik issuer — `AUTHENTIK_AUDIENCE` is **required** when auth is enabled
 - **Opt-in**: runs unauthenticated when `AUTHENTIK_ISSUER` is not set
 - **Docker-friendly**: supports internal JWKS fetching via `AUTHENTIK_JWKS_URI` + `AUTHENTIK_HOST`
 
@@ -115,7 +116,9 @@ Save the provider. On the detail page, note the **OpenID Configuration Issuer** 
 https://auth.your-domain.com/application/o/mealie-mcp-server/
 ```
 
-This is your `AUTHENTIK_ISSUER` value.
+This is your `AUTHENTIK_ISSUER` value. On the same provider detail page, note the **Client ID** — this is your `AUTHENTIK_AUDIENCE` value.
+
+> **⚠️ `AUTHENTIK_AUDIENCE` is required when authentication is enabled.** The server verifies that each token's `aud` claim contains this Client ID, so a token minted for a *different* Authentik application can't be replayed against this server. If `AUTHENTIK_ISSUER` is set but `AUTHENTIK_AUDIENCE` is not, **the server will refuse to start**.
 
 #### Step 2 — Create an Application in Authentik
 
