@@ -46,9 +46,9 @@ class RecipeCreate(BaseModel):
     prepTime: Optional[str] = None  # plain text e.g. "30 minutes", "1 hour"
     performTime: Optional[str] = None  # active cook time, plain text
     totalTime: Optional[str] = None  # plain text e.g. "1 hour 30 minutes"
-    recipeServings: Optional[int] = None  # number of servings (people)
-    recipeYieldQuantity: Optional[int] = None  # total output e.g. 6 fillets, 2 cups
-    recipeYield: Optional[str] = None  # unit + per-serving text e.g. "fillets (3 fillets per serving)", "cups (1/2 cup per serving)"
+    recipeServings: Optional[float] = None  # number of people served (e.g. 4); use for most dishes
+    recipeYieldQuantity: Optional[float] = None  # numeric total output (e.g. 12); pair with recipeYield unit
+    recipeYield: Optional[str] = None  # bare yield unit only, e.g. "cookies", "cups", "loaf" (renders as "12 cookies")
     orgURL: Optional[str] = None  # source URL if recipe came from somewhere
     nutrition: Optional[RecipeNutritionCreate] = None
     notes: Optional[List[Dict[str, str]]] = None  # [{"title": "...", "text": "..."}]
@@ -145,8 +145,8 @@ class Recipe(BaseModel):
     name: str
     slug: str
     image: Optional[str] = None
-    recipeServings: Optional[int] = None
-    recipeYieldQuantity: Optional[int] = 0
+    recipeServings: Optional[float] = None
+    recipeYieldQuantity: Optional[float] = 0
     recipeYield: Optional[str] = None
     totalTime: Optional[str] = None
     prepTime: Optional[str] = None

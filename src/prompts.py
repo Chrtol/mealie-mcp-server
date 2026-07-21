@@ -391,11 +391,15 @@ Ask the user for all required details conversationally. Collect:
 - Ingredients — for each: quantity, unit, food name, and any note
 - Instructions — numbered steps; use section headers if needed
 - Prep time, cook time, total time — plain text (e.g. "30 minutes", "1 hour", "1 hour 30 minutes")
-- Servings and yield — three independent fields:
-    - recipeServings: number of people served (e.g. 2)
-    - recipeYieldQuantity: total output quantity (e.g. 6 for 6 fillets, 2 for 2 cups)
-    - recipeYield: unit + per-serving breakdown (e.g. "fillets (3 fillets per serving)", "cups (1/2 cup per serving)")
-  Nutrition values are per serving.
+- Servings and yield — set only what fits the recipe (Mealie shows them separately):
+    - recipeServings: number of people served (e.g. 4). Use this for most dishes.
+    - recipeYieldQuantity + recipeYield: a produced amount — recipeYieldQuantity is the number
+      (e.g. 12) and recipeYield is the BARE unit only ("cookies", "cups", "loaf"), shown together
+      as "12 cookies". Never put a per-serving breakdown or sentence in recipeYield.
+    - Most people-fed dishes use recipeServings only; leave yield blank. Set yield only when the
+      output is a countable/measurable thing worth stating; set both only when the yield differs
+      from portioning (e.g. yields 12 meatballs but serves 4).
+  Enter nutrition as per-serving values (Mealie stores nutrition statically and does not rescale it).
 - Source URL if applicable
 - Nutrition — required; estimate from standard sources if the user doesn't have exact values.
   All eleven fields must be populated: calories, carbohydrate, cholesterol, fat, fiber, protein,

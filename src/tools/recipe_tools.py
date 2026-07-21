@@ -275,10 +275,14 @@ def register_recipe_tools(mcp: FastMCP, mealie: MealieFetcher) -> None:
            do not invent unit names, as unknown units will be silently dropped.
         4. Always include "my-recipes" in tags (default). Use "the-autoimmune-solution"
            instead if the recipe belongs to that cookbook.
-        5. Yield: three independent fields — recipeServings (number of people served),
-           recipeYieldQuantity (total output quantity, e.g. 6 for 6 fillets or 2 for 2 cups),
-           and recipeYield (unit + per-serving breakdown, e.g. "fillets (3 fillets per serving)",
-           "cups (1/2 cup per serving)"). Nutrition values are per serving.
+        5. Servings and yield — set only what fits the recipe (Mealie shows them separately):
+           recipeServings is the number of people served (e.g. 4) — use it for most dishes.
+           recipeYieldQuantity + recipeYield describe a produced amount: recipeYieldQuantity is
+           the number (e.g. 12) and recipeYield is the BARE unit only ("cookies", "cups", "loaf"),
+           shown together as "12 cookies". Never put a per-serving breakdown or sentence in
+           recipeYield. Most people-fed dishes use recipeServings only and leave yield blank; set
+           yield only when the output is a countable/measurable thing worth stating; set both only
+           when the yield differs from portioning (e.g. yields 12 meatballs but serves 4).
         6. Time: use plain human-readable strings — e.g. "30 minutes", "1 hour",
            "1 hour 30 minutes". Never use ISO 8601 format.
         7. Nutrition: always populate every nutrition field (calories, carbohydrateContent,
