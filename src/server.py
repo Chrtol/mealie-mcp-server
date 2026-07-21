@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import traceback
@@ -51,6 +52,9 @@ mcp = FastMCP(
 )
 
 _oidc_metadata_cache: dict | None = None
+# Single-flight the discovery fetch so concurrent cold-cache requests don't each
+# hit Authentik (warm-cache reads return before taking the lock).
+_oidc_metadata_lock = asyncio.Lock()
 
 
 def _internal_discovery_url() -> tuple[str, dict]:
@@ -81,12 +85,15 @@ async def oauth_authorization_server_metadata(request: Request) -> Response:
     """Proxy Authentik's OIDC discovery so clients that skip oauth-protected-resource still find the token endpoint."""
     global _oidc_metadata_cache
     if _oidc_metadata_cache is None:
-        discovery_url, headers = _internal_discovery_url()
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(discovery_url, timeout=10, headers=headers)
-            resp.raise_for_status()
-            _oidc_metadata_cache = resp.json()
-        logger.info("Cached OAuth authorization server metadata from %s", discovery_url)
+        async with _oidc_metadata_lock:
+            # Re-check under the lock: a concurrent caller may have just fetched.
+            if _oidc_metadata_cache is None:
+                discovery_url, headers = _internal_discovery_url()
+                async with httpx.AsyncClient() as client:
+                    resp = await client.get(discovery_url, timeout=10, headers=headers)
+                    resp.raise_for_status()
+                    _oidc_metadata_cache = resp.json()
+                logger.info("Cached OAuth authorization server metadata from %s", discovery_url)
     return JSONResponse(_oidc_metadata_cache)
 
 
