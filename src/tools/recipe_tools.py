@@ -287,8 +287,9 @@ def register_recipe_tools(mcp: FastMCP, mealie: MealieFetcher) -> None:
            "1 hour 30 minutes". Never use ISO 8601 format.
         7. Nutrition: always populate every nutrition field (calories, carbohydrateContent,
            cholesterolContent, fatContent, fiberContent, proteinContent, saturatedFatContent,
-           sodiumContent, sugarContent, transFatContent, unsaturatedFatContent). Estimate
-           from standard sources if exact values are unknown. All values are strings.
+           sodiumContent, sugarContent, transFatContent, unsaturatedFatContent). Enter
+           per-serving values — Mealie stores nutrition statically and never rescales it.
+           Estimate from standard sources if exact values are unknown. All values are strings.
 
         The tool resolves all slug and name references to IDs automatically before saving.
         When nutrition data is provided, showNutrition is enabled automatically.
