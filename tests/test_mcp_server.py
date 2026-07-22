@@ -110,7 +110,7 @@ async def run(session: ClientSession) -> None:
     # -----------------------------------------------------------------------
     section("Pre-test cleanup — remove stale test artifacts")
     # -----------------------------------------------------------------------
-    for slug in ["test-recipe-copy", "test-recipe", "test-recipe-auto-food"]:
+    for slug in ["test-recipe-copy", "test-recipe", "test-recipe-auto-food", "test-recipe-fractional"]:
         try:
             _mealie.delete_recipe(slug)
             print(f"  [cleanup] deleted stale recipe: {slug}")
@@ -233,6 +233,33 @@ async def run(session: ClientSession) -> None:
             state["auto_food_id"] = auto_food["id"]
     except Exception as e:
         check("create_recipe auto-creates unknown food", False, str(e))
+
+    # Verify fractional servings/yield round-trip as floats (recipeServings and
+    # recipeYieldQuantity are float-typed; ints alone wouldn't exercise the change)
+    try:
+        r = await session.call_tool("create_recipe", {
+            "recipe": {
+                "name": "__test_recipe_fractional__",
+                "description": "Fractional servings/yield test — safe to delete",
+                "tags": [],
+                "recipeCategory": [],
+                "tools": [],
+                "recipeIngredient": [],
+                "recipeInstructions": [{"text": "Test step"}],
+                "recipeServings": 2.5,
+                "recipeYieldQuantity": 1.5,
+                "recipeYield": "loaves",
+            }
+        })
+        text = r.content[0].text if r.content else ""
+        check("create_recipe accepts fractional servings/yield", not r.isError and len(text) > 10, text[:80])
+        # Read it back and confirm the fractions survived the round-trip (not truncated to int)
+        detailed = await session.call_tool("get_recipe_detailed", {"slug": "test-recipe-fractional"})
+        dtext = detailed.content[0].text if detailed.content else ""
+        check("fractional recipeServings round-trips (2.5)", "2.5" in dtext, dtext[:120])
+        check("fractional recipeYieldQuantity round-trips (1.5)", "1.5" in dtext, dtext[:120])
+    except Exception as e:
+        check("create_recipe accepts fractional servings/yield", False, str(e))
 
     try:
         r = await session.call_tool("get_recipe_detailed", {"slug": slug})

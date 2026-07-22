@@ -4,6 +4,19 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [1.0.20] — 2026-07-22
+
+### Changed
+
+- `src/models/recipe.py` — aligned the recipe yield/servings fields with Mealie's own data model. `recipeServings` and `recipeYieldQuantity` are now `float` (were `int`), so fractional values like `2.5` servings or `1.5` loaves are preserved instead of being rejected or truncated. `recipeYield` is now the **bare unit only** (e.g. `"cookies"`, `"cups"`, `"loaf"`) — Mealie renders it alongside `recipeYieldQuantity` as `"12 cookies"`. Callers that previously packed a full phrase into `recipeYield` (e.g. `"12 cookies"` or a per-serving sentence) should split the number into `recipeYieldQuantity` and leave only the unit in `recipeYield`.
+- `src/tools/recipe_tools.py` — the `create_recipe` tool docstring now instructs the model to enter **per-serving** nutrition values (Mealie stores nutrition statically and never rescales it). Previously this guidance lived only in the guided-workflow prompt, so a direct `create_recipe` call could enter whole-recipe totals.
+
+### Added
+
+- `tests/test_mcp_server.py` — regression coverage that creates a recipe with fractional `recipeServings` (2.5) and `recipeYieldQuantity` (1.5) and asserts the fractions survive a create → `get_recipe_detailed` round-trip.
+
+---
+
 ## [1.0.19] — 2026-07-21
 
 ### Security
