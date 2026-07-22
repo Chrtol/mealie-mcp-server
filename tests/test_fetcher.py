@@ -509,6 +509,35 @@ def run(mealie: MealieFetcher) -> None:
             except Exception as e:
                 check(f"cleanup delete_food ({fid})", False, str(e))
 
+    # Sweep every __test_ meal plan by title, so an orphaned single entry from a
+    # crashed run (or any future bulk-create test) can't accumulate on the
+    # far-future test dates run after run.
+    try:
+        mp = mealie.get_mealplans(start_date="2098-01-01", end_date="2100-12-31", per_page=500)
+        for entry in mp.get("items", []):
+            if str(entry.get("title", "")).startswith("__test_"):
+                try:
+                    mealie.delete_mealplan(str(entry["id"]))
+                    check(f"cleanup delete_mealplan ({entry['title']} id={entry['id']})", True)
+                except Exception as e:
+                    check(f"cleanup delete_mealplan (id={entry['id']})", False, str(e))
+    except Exception:
+        pass
+
+    # Sweep every __test_ shopping list by name, so a list orphaned by a crashed
+    # run (delete-by-captured-id is skipped if the run dies mid-way) can't persist.
+    try:
+        sl = mealie.get_shopping_lists(per_page=200)
+        for lst in sl.get("items", []):
+            if str(lst.get("name", "")).startswith("__test_"):
+                try:
+                    mealie.delete_shopping_list(lst["id"])
+                    check(f"cleanup delete_shopping_list ({lst['name']})", True)
+                except Exception as e:
+                    check(f"cleanup delete_shopping_list (id={lst['id']})", False, str(e))
+    except Exception:
+        pass
+
     # -----------------------------------------------------------------------
     section("Summary")
     # -----------------------------------------------------------------------
