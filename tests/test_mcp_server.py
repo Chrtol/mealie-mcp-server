@@ -730,7 +730,13 @@ async def run(session: ClientSession) -> None:
     # -----------------------------------------------------------------------
     section("Cleanup — test recipes and foods")
     # -----------------------------------------------------------------------
-    for slug in [state.get("recipe_copy_slug", "test-recipe-copy"), state.get("recipe_slug", "test-recipe"), state.get("auto_food_recipe_slug")]:
+    for slug in [
+        state.get("recipe_copy_slug", "test-recipe-copy"),
+        state.get("recipe_slug", "test-recipe"),
+        state.get("auto_food_recipe_slug"),
+        "test-recipe-fractional",
+        state.get("unknown_unit_recipe_slug", "test-recipe-unknown-unit"),
+    ]:
         if slug:
             try:
                 r = _mealie.delete_recipe(slug)
@@ -751,6 +757,21 @@ async def run(session: ClientSession) -> None:
             check(f"cleanup delete_food (__test_auto_food__)", isinstance(r, dict))
         except Exception as e:
             check(f"cleanup delete_food (__test_auto_food__)", False, str(e))
+
+    # Sweep any remaining __test_ foods auto-created during recipe creation
+    # (e.g. the __test_food_uu_* foods behind the unknown-unit recipe) so a
+    # single run leaves nothing behind.
+    try:
+        leftover = _mealie.get_foods(search="__test_food", per_page=50)
+        for f in leftover.get("items", []):
+            if f.get("name", "").startswith("__test_"):
+                try:
+                    _mealie.delete_food(f["id"])
+                    check(f"cleanup delete_food ({f['name']})", True)
+                except Exception as e:
+                    check(f"cleanup delete_food ({f['name']})", False, str(e))
+    except Exception:
+        pass
 
     # -----------------------------------------------------------------------
     section("Summary")
