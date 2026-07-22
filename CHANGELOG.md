@@ -4,6 +4,25 @@ All notable changes to this project will be documented here.
 
 ---
 
+## [1.0.22] — 2026-07-22
+
+### Fixed
+
+- `src/models/recipe.py` + `src/tools/recipe_tools.py` — `create_recipe` no longer **silently drops** fields whose key doesn't match the model. Previously, when a client sent natural field names (`categories`, `ingredients`, `instructions`, `cookTime`) instead of the exact Mealie names (`recipeCategory`, `recipeIngredient`, `recipeInstructions`, `performTime`), Pydantic's default ignored the unknown keys and the recipe was created missing those whole sections — with no error. Hardened the create path:
+  - **Fail loud.** `RecipeCreate` and its nested models (`RecipeIngredientCreate`, `RecipeInstructionCreate`, `RecipeNutritionCreate`) now use `extra="forbid"`, so an unrecognized field returns a clear `isError` result the caller can correct, instead of vanishing.
+  - **Accept the natural names.** `categories`/`ingredients`/`instructions`/`cookTime`/`servings`/`sourceUrl` are accepted as aliases and mapped to the canonical Mealie fields (the schema still advertises the canonical names).
+  - **Match organizers by slug *or* name.** `resolve_organizer` now matches categories/tags/tools case-insensitively by slug or display name, so a category sent as `"Sauce"` (name, not slug) resolves instead of being silently dropped; any genuinely unmatched value is logged.
+  - **Normalize nutrition values** to bare numbers (`"4.9 g"` → `"4.9"`, `"1,200 mg"` → `"1200"`) so Mealie doesn't render a doubled unit.
+  - The raw input keys are logged on every `create_recipe` call, so field-name mismatches are diagnosable.
+
+### Added
+
+- `tests/test_recipe_model.py` — deterministic `RecipeCreate` unit tests (aliases, `extra="forbid"` top-level + nested, nutrition normalization, FastMCP schema shape + `isError` on unknown key).
+- `tests/test_recipe_create_fix.py` — end-to-end integration test via the MCP protocol (alias + name-not-slug round-trip, nutrition strip, unknown key → `isError` with no stub created; self-cleaning).
+- `tests/LLM_PROMPT_CREATE.md` — manual LLM acceptance test that creates one recipe stressing every failure mode and reports per-field PASS/FAIL.
+
+---
+
 ## [1.0.21] — 2026-07-22
 
 ### Fixed

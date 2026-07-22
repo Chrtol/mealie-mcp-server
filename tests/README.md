@@ -1,26 +1,31 @@
 # Tests
 
-Four automated scripts plus one manual LLM prompt:
+Six automated scripts plus two manual LLM prompts:
 
-- **Two unit scripts** — no live infrastructure (`test_auth.py`, `test_client_retry.py`)
-- **Two integration scripts** — cover all 51 MCP tools at two layers
-  (`test_fetcher.py` direct, `test_mcp_server.py` via the MCP protocol)
-- **One manual LLM prompt** — drives a model to call every read-only tool
-  (`LLM_PROMPT.md`)
+- **Three unit scripts** — no live infrastructure (`test_auth.py`, `test_client_retry.py`,
+  `test_recipe_model.py`)
+- **Three integration scripts** — cover the MCP tools at two layers
+  (`test_fetcher.py` direct, `test_mcp_server.py` via the MCP protocol) plus a focused
+  create_recipe hardening check (`test_recipe_create_fix.py`)
+- **Two manual LLM prompts** — `LLM_PROMPT.md` (read-only, every read tool) and
+  `LLM_PROMPT_CREATE.md` (mutating — one recipe create, verified per-field)
 
 ## Recommended run order
 
 Run the unit scripts first (fast, touch nothing), then the integration scripts,
-then the manual LLM prompt:
+then the manual LLM prompts:
 
 ```bash
 python tests/test_auth.py            # unit — no infra
 python tests/test_client_retry.py    # unit — no infra
+python tests/test_recipe_model.py    # unit — no infra (RecipeCreate model)
 python tests/test_fetcher.py         # integration — live Mealie
 docker compose -f tests/docker-compose.yml up -d --build
 python tests/test_mcp_server.py      # integration — live Mealie via MCP
+python tests/test_recipe_create_fix.py   # integration — create_recipe hardening, via MCP
 docker compose -f tests/docker-compose.yml down
-# then paste tests/LLM_PROMPT.md into Claude/ChatGPT with the MCP server connected
+# then paste tests/LLM_PROMPT.md (read-only) into Claude/ChatGPT with the MCP server connected
+# and, after the create_recipe fix is deployed, tests/LLM_PROMPT_CREATE.md (mutating — delete its recipe after)
 ```
 
 > The integration scripts create and delete real recipes/foods/lists/meal plans.
@@ -119,6 +124,47 @@ python tests/test_client_retry.py
 **Requirements:**
 - None beyond the project's own dependencies (`httpx`, already required)
 
+## Script 5 — RecipeCreate model (`test_recipe_model.py`)
+
+Unit-tests the `create_recipe` input model. Needs **no live infrastructure** — it
+drives `RecipeCreate` / `RecipeNutritionCreate` directly and inspects the FastMCP tool
+schema.
+
+```bash
+python tests/test_recipe_model.py
+```
+
+**What it tests:**
+- Natural-name aliases map to Mealie fields (`categories`→`recipeCategory`,
+  `cookTime`→`performTime`, `servings`→`recipeServings`, `sourceUrl`→`orgURL`, …)
+- `extra="forbid"` rejects unknown keys at the top level **and** nested
+  (ingredient/instruction/nutrition) — no silent drop
+- Nutrition values normalize to bare numbers (`"1,200 mg"`→`"1200"`)
+- The FastMCP tool schema advertises canonical names + `additionalProperties: false`,
+  and an unknown key returns an `isError` (retryable) result
+
+**Requirements:**
+- None beyond the project's own dependencies
+
+## Script 6 — create_recipe hardening, end-to-end (`test_recipe_create_fix.py`)
+
+Integration test that exercises the create_recipe fix through the **real MCP protocol**
+against a running server. Self-cleaning (`__test_fix_*`).
+
+```bash
+docker compose -f tests/docker-compose.yml up -d --build
+python tests/test_recipe_create_fix.py
+```
+
+**What it tests:**
+- Sending alias field names **and** a category as a display name ("Sauce") round-trips
+  — categories/ingredients/instructions/cook time/servings/nutrition all land
+- Nutrition unit suffixes are stripped end-to-end
+- An unknown key returns `isError` and creates **no** stub recipe
+
+**Requirements:**
+- Same as Script 2 (`MCP_SERVER_URL` + a running server + Mealie creds)
+
 ## Manual — LLM integration prompt (`LLM_PROMPT.md`)
 
 Not a script. Paste the body of `tests/LLM_PROMPT.md` into Claude or ChatGPT with
@@ -135,6 +181,23 @@ tool once — chaining IDs/slugs from earlier calls — and report PASS/FAIL per
   safety filter may false-positive on some read-only tools (see the file); treat
   those as platform noise, not server failures.
 
+## Manual — LLM create acceptance test (`LLM_PROMPT_CREATE.md`)
+
+Not a script, and **mutating**. Paste the body into Claude or ChatGPT with the MCP
+server connected. It has the model create one recipe from fixed data (engineered to
+stress alias field names, an unknown unit, bare-unit yield, and per-serving nutrition),
+read it back, and report PASS/FAIL for 9 field groups. Exercises the real write seam
+that automated tests can't — a real model choosing field names → the deployed server.
+
+**What it tests:**
+- End-to-end that a real LLM's `create_recipe` produces a *complete* recipe (the seam
+  the silent-field-drop bug lived in). Best run **after** the create_recipe fix is deployed.
+
+**Requirements:**
+- The MCP server connected to an LLM client
+- **Creates one recipe (`__test_llm_create__`) and does not delete it** — remove it in
+  the Mealie UI when finished.
+
 ## Test naming convention
 
 All test artifacts use `__test_*` naming so they are visually obvious in the Mealie UI.
@@ -147,6 +210,8 @@ The integration scripts delete every one of these within a single run:
 | Auto-food recipe | `__test_recipe_auto_food__` → slug `test-recipe-auto-food` |
 | Fractional recipe | `__test_recipe_fractional__` → slug `test-recipe-fractional` |
 | Unknown-unit recipe | `__test_recipe_unknown_unit__` → slug `test-recipe-unknown-unit` |
+| create_recipe-fix recipes | `__test_fix_friendly__` / `__test_fix_bad__` (Script 6) |
+| LLM create acceptance recipe | `__test_llm_create__` (manual — delete yourself) |
 | Food A / B | `__test_food_a__` / `__test_food_b__` |
 | Auto-created food | `__test_auto_food__` |
 | Unknown-unit foods | `__test_food_uu_a__` / `__test_food_uu_b__` |

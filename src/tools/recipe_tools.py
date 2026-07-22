@@ -296,6 +296,25 @@ def register_recipe_tools(mcp: FastMCP, mealie: MealieFetcher) -> None:
         The tool resolves all slug and name references to IDs automatically before saving.
         When nutrition data is provided, showNutrition is enabled automatically.
 
+        Use these EXACT field names (unknown fields are rejected, not ignored):
+        recipeCategory, tags, tools, recipeIngredient, recipeInstructions, prepTime,
+        performTime (the cook/active time), totalTime, recipeServings,
+        recipeYieldQuantity, recipeYield, orgURL, nutrition, notes. Worked example:
+
+            {
+              "name": "Quick Tomato Sauce",
+              "recipeCategory": ["sauce"],
+              "tags": ["my-recipes"],
+              "recipeServings": 4,
+              "recipeYieldQuantity": 2, "recipeYield": "cups",
+              "prepTime": "10 minutes", "performTime": "20 minutes", "totalTime": "30 minutes",
+              "recipeIngredient": [
+                {"quantity": 2, "unit": "cup", "food": "tomato", "note": "chopped"}
+              ],
+              "recipeInstructions": [{"text": "Simmer until thick."}],
+              "nutrition": {"calories": "90", "carbohydrateContent": "12"}
+            }
+
         Args:
             recipe: RecipeCreate object with name, description, categories (slugs),
                 tags (slugs), tools (slugs), ingredients (food/unit names), instructions,
@@ -312,17 +331,34 @@ def register_recipe_tools(mcp: FastMCP, mealie: MealieFetcher) -> None:
             if not isinstance(slug, str):
                 slug = slug.get("slug", slug)
 
-            # Step 2: Resolve categories, tags, tools slugs → full objects
-            def resolve_organizer(items: List[str], fetch_fn) -> List[Dict[str, Any]]:
+            # Step 2: Resolve categories, tags, tools → full objects.
+            # Match by slug OR name, case-insensitively, so a value the LLM sends as a
+            # display name or wrong case ("Sauce" vs "sauce") resolves instead of being
+            # silently dropped. Any genuinely-unmatched value is logged, not swallowed.
+            def resolve_organizer(
+                items: List[str], fetch_fn, kind: str = "organizer"
+            ) -> List[Dict[str, Any]]:
                 if not items:
                     return []
                 all_items = fetch_fn(per_page=200).get("items", [])
-                lookup = {i["slug"]: i for i in all_items}
-                return [lookup[s] for s in items if s in lookup]
+                lookup: Dict[str, Any] = {}
+                for i in all_items:
+                    if i.get("slug"):
+                        lookup[str(i["slug"]).lower()] = i
+                    if i.get("name"):
+                        lookup[str(i["name"]).lower()] = i
+                resolved: List[Dict[str, Any]] = []
+                for s in items:
+                    obj = lookup.get(str(s).lower())
+                    if obj is not None:
+                        resolved.append(obj)
+                    else:
+                        logger.info({"message": f"{kind} not matched — dropped", "value": s})
+                return resolved
 
-            resolved_categories = resolve_organizer(recipe.recipeCategory, mealie.get_categories)
-            resolved_tags = resolve_organizer(recipe.tags, mealie.get_tags)
-            resolved_tools = resolve_organizer(recipe.tools, mealie.get_organizer_tools)
+            resolved_categories = resolve_organizer(recipe.recipeCategory, mealie.get_categories, "category")
+            resolved_tags = resolve_organizer(recipe.tags, mealie.get_tags, "tag")
+            resolved_tools = resolve_organizer(recipe.tools, mealie.get_organizer_tools, "tool")
 
             # Step 3: Resolve ingredient food names and unit names → full objects
             all_foods = mealie.get_foods(per_page=500).get("items", [])
