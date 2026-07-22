@@ -110,7 +110,7 @@ async def run(session: ClientSession) -> None:
     # -----------------------------------------------------------------------
     section("Pre-test cleanup — remove stale test artifacts")
     # -----------------------------------------------------------------------
-    for slug in ["test-recipe-copy", "test-recipe", "test-recipe-auto-food", "test-recipe-fractional"]:
+    for slug in ["test-recipe-copy", "test-recipe", "test-recipe-auto-food", "test-recipe-fractional", "test-recipe-unknown-unit"]:
         try:
             _mealie.delete_recipe(slug)
             print(f"  [cleanup] deleted stale recipe: {slug}")
@@ -260,6 +260,60 @@ async def run(session: ClientSession) -> None:
         check("fractional recipeYieldQuantity round-trips (1.5)", "1.5" in dtext, dtext[:120])
     except Exception as e:
         check("create_recipe accepts fractional servings/yield", False, str(e))
+
+    # Verify an unmatched ingredient unit is preserved in the note (not dropped).
+    # Uses a unit name that cannot exist in the catalog so resolution always misses.
+    try:
+        r = await session.call_tool("create_recipe", {
+            "recipe": {
+                "name": "__test_recipe_unknown_unit__",
+                "description": "Unknown-unit preservation test — safe to delete",
+                "tags": [],
+                "recipeCategory": [],
+                "tools": [],
+                "recipeIngredient": [
+                    # no existing note → note becomes just the unit text
+                    {"food": "__test_food_uu_a__", "quantity": 2.0,
+                     "unit": "__test_unknown_unit__", "disableAmount": False},
+                    # existing note → unit text is appended after it
+                    {"food": "__test_food_uu_b__", "quantity": 3.0,
+                     "unit": "__test_unknown_unit__", "note": "chopped",
+                     "disableAmount": False},
+                ],
+                "recipeInstructions": [{"text": "Test step"}],
+                "recipeYield": "1 serving",
+            }
+        })
+        text = r.content[0].text if r.content else ""
+        check("create_recipe accepts unknown unit", not r.isError and len(text) > 10, text[:80])
+        state["unknown_unit_recipe_slug"] = "test-recipe-unknown-unit"
+
+        detailed = await session.call_tool("get_recipe_detailed", {"slug": "test-recipe-unknown-unit"})
+        dtext = detailed.content[0].text if detailed.content else ""
+        # Pull the ingredient notes; parse JSON when possible, else fall back to substring.
+        notes = []
+        try:
+            ings = _json.loads(dtext).get("recipeIngredient", [])
+            notes = [i.get("note") or "" for i in ings]
+        except Exception:
+            notes = []
+        if notes:
+            check("unknown unit preserved in note (no prior note)",
+                  any(n.strip() == "__test_unknown_unit__" for n in notes),
+                  f"notes={notes}")
+            check("unknown unit appended to existing note",
+                  any("chopped" in n and "__test_unknown_unit__" in n for n in notes),
+                  f"notes={notes}")
+            check("unmatched unit not stored as structured unit",
+                  all("__test_unknown_unit__" not in _json.dumps(i.get("unit"))
+                      for i in _json.loads(dtext).get("recipeIngredient", [])),
+                  "unknown unit leaked into the structured unit field")
+        else:
+            # Couldn't parse structured ingredients — assert the text at least survived
+            check("unknown unit text preserved somewhere in recipe",
+                  "__test_unknown_unit__" in dtext, dtext[:120])
+    except Exception as e:
+        check("create_recipe accepts unknown unit", False, str(e))
 
     try:
         r = await session.call_tool("get_recipe_detailed", {"slug": slug})

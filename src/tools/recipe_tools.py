@@ -271,8 +271,10 @@ def register_recipe_tools(mcp: FastMCP, mealie: MealieFetcher) -> None:
            "pepper"). Only use a name that isn't in the catalog if the food is truly
            absent — the tool will create it automatically.
         3. For every ingredient unit, call get_units first and pick the best match
-           (e.g. "c" or "cup" → use the existing "cup" unit). If no unit fits, omit it —
-           do not invent unit names, as unknown units will be silently dropped.
+           (e.g. "c" or "cup" → use the existing "cup" unit) so the unit is stored
+           structurally. A unit with no catalog match is not dropped — it is appended
+           to the ingredient's note so the text is preserved — but prefer matching an
+           existing unit, since a note-only unit does not participate in scaling.
         4. Always include "my-recipes" in tags (default). Use "the-autoimmune-solution"
            instead if the recipe belongs to that cookbook.
         5. Servings and yield — set only what fits the recipe (Mealie shows them separately):
@@ -352,7 +354,22 @@ def register_recipe_tools(mcp: FastMCP, mealie: MealieFetcher) -> None:
                     unit_obj = unit_lookup.get(ing.unit.lower())
                     if unit_obj:
                         resolved["unit"] = unit_obj
-                    # Unknown units are dropped — Mealie requires a unit id on PATCH
+                    else:
+                        # Mealie requires a unit id on PATCH, so an unresolvable
+                        # unit can't go in the structured unit field. Preserve the
+                        # text by appending it to the note rather than dropping it,
+                        # and log it so it can be corrected on review.
+                        existing_note = resolved.get("note")
+                        resolved["note"] = (
+                            f"{existing_note}, {ing.unit}" if existing_note else ing.unit
+                        )
+                        logger.info(
+                            {
+                                "message": "Unknown unit preserved in note",
+                                "unit": ing.unit,
+                                "food": ing.food,
+                            }
+                        )
                 resolved_ingredients.append(resolved)
 
             # Step 4: Build patch payload
