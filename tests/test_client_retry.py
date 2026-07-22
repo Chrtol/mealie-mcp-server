@@ -4,7 +4,7 @@ Script 4: Request-retry unit tests.
 Like test_auth.py, this needs NO live infrastructure — no Mealie, no running
 MCP server. It builds a MealieClient with a stubbed httpx client (bypassing the
 constructor's live connection check) and drives _handle_request directly to lock
-in the retry behavior added in 1.0.22:
+in the retry behavior added in 1.0.21:
 
   - a RemoteProtocolError on an idempotent method (GET/PATCH/DELETE) is retried
     once with a fresh connection, and can succeed on the retry

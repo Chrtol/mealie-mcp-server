@@ -4,27 +4,17 @@ All notable changes to this project will be documented here.
 
 ---
 
-## [1.0.22] — 2026-07-22
-
-### Fixed
-
-- `src/mealie/client.py` — `_handle_request` no longer retries a **POST** after a `RemoteProtocolError`. The retry (added in 1.0.18 for stale pooled connections) fired for every method, but that error is also raised when the server drops the connection *after* receiving the request — indistinguishable from the never-sent case. For a non-idempotent POST that meant a recipe already created server-side would be created a second time on retry, producing a duplicate (e.g. `chicken-soup` and `chicken-soup-1`). Retries are now limited to idempotent methods (GET/PATCH/DELETE/PUT); a stale-connection failure on a POST surfaces as an error for the caller to retry rather than silently duplicating.
-
-### Added
-
-- `tests/test_client_retry.py` — unit tests (no live infrastructure) asserting that an idempotent request retries once and can succeed on the retry, while a POST raises after exactly one attempt and is never retried.
-
----
-
 ## [1.0.21] — 2026-07-22
 
 ### Fixed
 
 - `src/tools/recipe_tools.py` — `create_recipe` no longer silently drops an ingredient unit that has no match in Mealie's unit catalog. Previously an unresolvable unit (e.g. "slices") was discarded because Mealie requires a unit id on PATCH, so "2 slices bacon" was stored as "2 bacon" — silent data loss. The unmatched unit text is now appended to the ingredient's `note` (after any existing note) and logged, so the information is preserved for correction on review. Units that do resolve are unchanged — they are still stored structurally. This avoids polluting the unit vocabulary with half-populated, fragmented entries (slice / slices / Slice) that auto-creating a unit per unknown name would produce.
+- `src/mealie/client.py` — `_handle_request` no longer retries a **POST** after a `RemoteProtocolError`. The retry (added in 1.0.18 for stale pooled connections) fired for every method, but that error is also raised when the server drops the connection *after* receiving the request — indistinguishable from the never-sent case. For a non-idempotent POST that meant a recipe already created server-side would be created a second time on retry, producing a duplicate (e.g. `chicken-soup` and `chicken-soup-1`). Retries are now limited to idempotent methods (GET/PATCH/DELETE/PUT); a stale-connection failure on a POST surfaces as an error for the caller to retry rather than silently duplicating.
 
 ### Added
 
 - `tests/test_mcp_server.py` — regression coverage that creates a recipe with an unresolvable ingredient unit and asserts the unit text is preserved in the note (both the no-prior-note and append-to-existing-note cases) and never leaks into the structured unit field.
+- `tests/test_client_retry.py` — unit tests (no live infrastructure) asserting that an idempotent request retries once and can succeed on the retry, while a POST raises after exactly one attempt and is never retried.
 
 ---
 
