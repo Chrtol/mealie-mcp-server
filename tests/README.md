@@ -1,9 +1,37 @@
 # Tests
 
-Three test scripts: two integration scripts covering all 51 MCP tools at two
-layers, plus a standalone unit test for the auth token verifier.
+Four automated scripts plus one manual LLM prompt:
+
+- **Two unit scripts** — no live infrastructure (`test_auth.py`, `test_client_retry.py`)
+- **Two integration scripts** — cover all 51 MCP tools at two layers
+  (`test_fetcher.py` direct, `test_mcp_server.py` via the MCP protocol)
+- **One manual LLM prompt** — drives a model to call every read-only tool
+  (`LLM_PROMPT.md`)
+
+## Recommended run order
+
+Run the unit scripts first (fast, touch nothing), then the integration scripts,
+then the manual LLM prompt:
+
+```bash
+python tests/test_auth.py            # unit — no infra
+python tests/test_client_retry.py    # unit — no infra
+python tests/test_fetcher.py         # integration — live Mealie
+docker compose -f tests/docker-compose.yml up -d --build
+python tests/test_mcp_server.py      # integration — live Mealie via MCP
+docker compose -f tests/docker-compose.yml down
+# then paste tests/LLM_PROMPT.md into Claude/ChatGPT with the MCP server connected
+```
+
+> The integration scripts create and delete real recipes/foods/lists/meal plans.
+> They are self-cleaning within a single run and everything is `__test_*`-named,
+> so they are safe to run against a production Mealie — just use a temporary API
+> key and delete it afterwards.
 
 ## Setup
+
+Only the integration scripts (1 and 2) need this; the unit scripts and the LLM
+prompt do not.
 
 ```bash
 cp tests/.env.testing.template tests/.env.testing
@@ -71,17 +99,56 @@ python tests/test_auth.py
 **Requirements:**
 - None beyond the project's own dependencies (`joserfc`, already required)
 
+## Script 4 — Request retry (`test_client_retry.py`)
+
+Unit-tests the `RemoteProtocolError` retry logic in `src/mealie/client.py`. Needs
+**no live infrastructure** — it builds a `MealieClient` with a stubbed httpx client
+(bypassing the constructor's connection check) and drives `_handle_request` directly.
+
+```bash
+python tests/test_client_retry.py
+```
+
+**What it tests:**
+- An idempotent method (GET/PATCH/DELETE) is retried once on a stale-connection
+  error and can succeed on the retry
+- A non-idempotent **POST** is **not** retried — it raises after exactly one attempt,
+  so a request already processed server-side is never duplicated (e.g. `recipe` /
+  `recipe-1`)
+
+**Requirements:**
+- None beyond the project's own dependencies (`httpx`, already required)
+
+## Manual — LLM integration prompt (`LLM_PROMPT.md`)
+
+Not a script. Paste the body of `tests/LLM_PROMPT.md` into Claude or ChatGPT with
+the Mealie MCP server connected. It instructs the model to call every **read-only**
+tool once — chaining IDs/slugs from earlier calls — and report PASS/FAIL per tool.
+
+**What it tests:**
+- Every read-only tool is reachable and returns a valid response through a real
+  LLM client (the actual usage path), not just the protocol
+
+**Requirements:**
+- The MCP server connected to an LLM client (no `.env.testing` needed)
+- Entirely read-only — the safest test to run against production. Note ChatGPT's
+  safety filter may false-positive on some read-only tools (see the file); treat
+  those as platform noise, not server failures.
+
 ## Test naming convention
 
-All test artifacts use `__test_*` naming so they are visually obvious in the Mealie UI:
+All test artifacts use `__test_*` naming so they are visually obvious in the Mealie UI.
+The integration scripts delete every one of these within a single run:
 
 | Artifact | Name |
 |----------|------|
 | Recipe | `__test_recipe__` → slug `test-recipe` |
 | Recipe copy | `__test_recipe_copy__` → slug `test-recipe-copy` |
 | Auto-food recipe | `__test_recipe_auto_food__` → slug `test-recipe-auto-food` |
-| Food A | `__test_food_a__` |
-| Food B | `__test_food_b__` |
+| Fractional recipe | `__test_recipe_fractional__` → slug `test-recipe-fractional` |
+| Unknown-unit recipe | `__test_recipe_unknown_unit__` → slug `test-recipe-unknown-unit` |
+| Food A / B | `__test_food_a__` / `__test_food_b__` |
 | Auto-created food | `__test_auto_food__` |
+| Unknown-unit foods | `__test_food_uu_a__` / `__test_food_uu_b__` |
 | Shopping list | `__test_shopping_list__` |
 | Meal plan | date `2099-01-01` |
