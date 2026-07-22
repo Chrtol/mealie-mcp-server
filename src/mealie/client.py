@@ -178,8 +178,13 @@ class MealieClient:
             raise ConnectionError(error_msg) from e
 
         except RemoteProtocolError as e:
-            # Stale pooled connection was closed by the server; retry once with a fresh connection.
-            if _retry:
+            # A stale pooled connection closed by the server raises this before the
+            # request is sent, so retrying with a fresh connection is safe. But the
+            # SAME error is raised when the server drops the connection AFTER receiving
+            # the request — indistinguishable here. For a non-idempotent POST that means
+            # the resource may already have been created, so a blind retry would create
+            # a duplicate (e.g. "recipe" and "recipe-1"). Only retry idempotent methods.
+            if _retry and method.upper() != "POST":
                 logger.warning({"message": f"Stale connection on {method} {url}, retrying", "error": str(e)})
                 return self._handle_request(method, url, _retry=False, **kwargs)
             error_msg = f"Protocol error for {method} {url}: {str(e)}"
