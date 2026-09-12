@@ -27,7 +27,14 @@ log_level = getattr(logging, log_level_name.upper(), logging.INFO)
 logging.basicConfig(
     level=log_level,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler(), logging.FileHandler("mealie_mcp_server.log")],
+    # Downstream fork: stdout only. The upstream FileHandler writes
+    # mealie_mcp_server.log into WORKDIR (/app), which is fatal under
+    # readOnlyRootFilesystem -- the pod crashloops on OSError EROFS before
+    # serving a request. Pointing it at a writable volume instead would just
+    # trade that for an unbounded file growing into node ephemeral storage
+    # until the pod is evicted. In a container stdout IS the log: it is what
+    # `kubectl logs` reads and what the cluster log pipeline collects.
+    handlers=[logging.StreamHandler()],
 )
 logger = logging.getLogger("mealie-mcp")
 
