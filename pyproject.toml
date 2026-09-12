@@ -9,7 +9,11 @@ authors = [
 ]
 dependencies = [
     "httpx>=0.28.1",
-    "mcp[cli]>=1.12.0",
+    # Upper bound is load-bearing. This code targets the 1.x server API
+    # (mcp.server.fastmcp.FastMCP); in 2.x FastMCP was renamed to MCPServer
+    # and the module is gone, so an unbounded range resolves to a release
+    # that ImportErrors at startup. Drop the cap only alongside a migration.
+    "mcp[cli]>=1.12.0,<2",
     "pydantic>=2.11.3",
     "python-dotenv>=1.1.0",
     "joserfc>=1.0.0",
